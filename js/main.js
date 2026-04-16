@@ -199,3 +199,19 @@ function toggleSociety(button) {
     card.classList.add('expanded');
   }
 }
+
+// FLOATING ACTION BUTTONS
+document.addEventListener('DOMContentLoaded', () => {
+  // Create floating buttons container
+  const floatingBtns = document.createElement('div');
+  floatingBtns.className = 'floating-action-buttons';
+  floatingBtns.innerHTML = `
+    <a href="https://wa.me/923312220520" target="_blank" rel="noopener noreferrer" class="floating-btn" aria-label="WhatsApp">
+      <i class="fab fa-whatsapp"></i>
+    </a>
+    <a href="tel:+923312220520" class="floating-btn" aria-label="Call">
+      <i class="fas fa-phone"></i>
+    </a>
+  `;
+  document.body.appendChild(floatingBtns);
+});
