@@ -2,14 +2,85 @@
 (function() {
   let supabaseClient;
   let editingId = null;
+  let uploadedImages = [];
 
   // Initialize
   async function initInventory() {
     supabaseClient = window.getSupabaseClient();
+    setupImageUpload();
     await loadInventory();
   }
 
-  // Load inventory
+  // Setup image upload
+  function setupImageUpload() {
+    const imageUpload = document.getElementById('imageUpload');
+    if (!imageUpload) return;
+
+    imageUpload.addEventListener('change', async function(e) {
+      const files = Array.from(e.target.files);
+      const preview = document.getElementById('imagePreview');
+      
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name} is too large. Max size is 5MB.`);
+          continue;
+        }
+
+        if (!file.type.startsWith('image/')) {
+          alert(`${file.name} is not an image file.`);
+          continue;
+        }
+
+        const loadingDiv = document.createElement('div');
+        loadingDiv.style.cssText = 'width: 100px; height: 100px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; border-radius: 8px;';
+        loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        preview.appendChild(loadingDiv);
+
+        try {
+          const fileName = `inventory_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const { data, error } = await supabaseClient.storage
+            .from('property-images')
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (error) throw error;
+
+          const { data: { publicUrl } } = supabaseClient.storage
+            .from('property-images')
+            .getPublicUrl(fileName);
+
+          uploadedImages.push(publicUrl);
+
+          preview.removeChild(loadingDiv);
+          
+          const imgContainer = document.createElement('div');
+          imgContainer.style.cssText = 'position: relative; width: 100px; height: 100px;';
+          imgContainer.innerHTML = `
+            <img src="${publicUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #134d37;">
+            <button type="button" onclick="removeImage('${publicUrl}', this.parentElement)" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-times"></i>
+            </button>
+          `;
+          preview.appendChild(imgContainer);
+
+        } catch (error) {
+          console.error('Upload error:', error);
+          preview.removeChild(loadingDiv);
+          alert(`Failed to upload ${file.name}: ${error.message}`);
+        }
+      }
+
+      e.target.value = '';
+    });
+  }
+
+  window.removeImage = function(url, element) {
+    uploadedImages = uploadedImages.filter(img => img !== url);
+    element.remove();
+  };
+
   async function loadInventory() {
     try {
       let query = supabaseClient
@@ -17,24 +88,16 @@
         .select('*')
         .order('created_at', { ascending: false });
       
-      // Apply filters
       const search = document.getElementById('searchInput')?.value.toLowerCase();
       const type = document.getElementById('typeFilter')?.value;
       const status = document.getElementById('statusFilter')?.value;
       
-      if (type) {
-        query = query.eq('property_type', type);
-      }
-      
-      if (status) {
-        query = query.eq('status', status);
-      }
+      if (type) query = query.eq('property_type', type);
+      if (status) query = query.eq('status', status);
       
       const { data: inventory, error } = await query;
-      
       if (error) throw error;
       
-      // Client-side search filter
       let filtered = inventory || [];
       if (search) {
         filtered = filtered.filter(item => 
@@ -48,11 +111,17 @@
       const tbody = document.getElementById('inventoryTable');
       
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No inventory items found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data">No inventory items found</td></tr>';
         return;
       }
       
-      tbody.innerHTML = filtered.map(item => `
+      tbody.innerHTML = filtered.map(item => {
+        const images = item.image_urls ? JSON.parse(item.image_urls) : [];
+        const imagePreview = images.length > 0 
+          ? `<img src="${images[0]}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">` 
+          : '<span style="color: #999;">No image</span>';
+        
+        return `
         <tr>
           <td><span class="status-badge" style="background: ${item.property_type === 'plot' ? '#dbeafe' : '#fef3c7'}; color: ${item.property_type === 'plot' ? '#1e40af' : '#92400e'};">${item.property_type}</span></td>
           <td><strong>${item.plot_number}</strong></td>
@@ -61,20 +130,16 @@
           <td>${item.size}</td>
           <td>${item.purchase_price}</td>
           <td><strong style="color: #134d37;">${item.selling_price}</strong></td>
+          <td>${imagePreview}</td>
           <td><span class="status-badge status-${item.status}">${item.status}</span></td>
           <td>
-            <button onclick="viewItem('${item.id}')" class="action-btn view-btn" title="View Details">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button onclick="editItem('${item.id}')" class="action-btn edit-btn" title="Edit">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button onclick="deleteItem('${item.id}')" class="action-btn delete-btn" title="Delete">
-              <i class="fas fa-trash"></i>
-            </button>
+            <button onclick="viewItem('${item.id}')" class="action-btn view-btn"><i class="fas fa-eye"></i></button>
+            <button onclick="editItem('${item.id}')" class="action-btn edit-btn"><i class="fas fa-edit"></i></button>
+            <button onclick="deleteItem('${item.id}')" class="action-btn delete-btn"><i class="fas fa-trash"></i></button>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
       
     } catch (error) {
       console.error('Error loading inventory:', error);
@@ -82,7 +147,6 @@
     }
   }
 
-  // Toggle sold fields
   window.toggleSoldFields = function() {
     const status = document.getElementById('status').value;
     const soldDateGroup = document.getElementById('soldDateGroup');
@@ -97,17 +161,16 @@
     }
   };
 
-  // Open add modal
   window.openAddModal = function() {
     editingId = null;
+    uploadedImages = [];
     document.getElementById('modalTitle').textContent = 'Add to Inventory';
     document.getElementById('inventoryForm').reset();
-    document.getElementById('inventoryId').value = '';
+    document.getElementById('imagePreview').innerHTML = '';
     toggleSoldFields();
     document.getElementById('inventoryModal').classList.add('active');
   };
 
-  // View item details
   window.viewItem = async function(id) {
     try {
       const { data: item, error } = await supabaseClient
@@ -118,10 +181,19 @@
       
       if (error) throw error;
       if (!item) return;
+
+      const images = item.image_urls ? JSON.parse(item.image_urls) : [];
+      const imageGallery = images.length > 0 
+        ? `<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            ${images.map(img => `<img src="${img}" style="width: 150px; height: 150px; object-fit: cover; border-radius: 8px;">`).join('')}
+           </div>`
+        : '';
       
       let details = `
         <div style="padding: 20px;">
           <h3 style="color: #134d37; margin-bottom: 20px;">Inventory Details</h3>
+          
+          ${imageGallery}
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
             <div><strong>Type:</strong> ${item.property_type}</div>
@@ -138,17 +210,6 @@
             <div><strong>Selling Price:</strong> ${item.selling_price}</div>
           </div>
           
-          <h4 style="color: #134d37; margin: 20px 0 10px;">Owner Details</h4>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            <div><strong>Owner Name:</strong> ${item.owner_name || 'N/A'}</div>
-            <div><strong>Owner Contact:</strong> ${item.owner_contact || 'N/A'}</div>
-          </div>
-          
-          <h4 style="color: #134d37; margin: 20px 0 10px;">Status</h4>
-          <div style="margin-bottom: 20px;">
-            <span class="status-badge status-${item.status}">${item.status}</span>
-          </div>
-          
           ${item.status === 'sold' ? `
             <h4 style="color: #134d37; margin: 20px 0 10px;">Sale Details</h4>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
@@ -158,19 +219,9 @@
               <div><strong>Profit/Loss:</strong> ${item.profit_loss || 'N/A'}</div>
             </div>
           ` : ''}
-          
-          ${item.notes ? `
-            <h4 style="color: #134d37; margin: 20px 0 10px;">Notes</h4>
-            <p style="color: #666;">${item.notes}</p>
-          ` : ''}
-          
-          <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-            <small style="color: #999;">Added: ${new Date(item.created_at).toLocaleString()}</small>
-          </div>
         </div>
       `;
       
-      // Create temporary modal for viewing
       const viewModal = document.createElement('div');
       viewModal.className = 'modal active';
       viewModal.innerHTML = `
@@ -193,7 +244,6 @@
     }
   };
 
-  // Edit item
   window.editItem = async function(id) {
     try {
       const { data: item, error } = await supabaseClient
@@ -206,8 +256,9 @@
       if (!item) return;
       
       editingId = id;
+      uploadedImages = item.image_urls ? JSON.parse(item.image_urls) : [];
+      
       document.getElementById('modalTitle').textContent = 'Edit Inventory Item';
-      document.getElementById('inventoryId').value = item.id;
       document.getElementById('propertyType').value = item.property_type;
       document.getElementById('plotNumber').value = item.plot_number;
       document.getElementById('block').value = item.block;
@@ -226,6 +277,16 @@
       document.getElementById('notes').value = item.notes || '';
       document.getElementById('documents').value = item.documents || '';
       
+      const preview = document.getElementById('imagePreview');
+      preview.innerHTML = uploadedImages.map(url => `
+        <div style="position: relative; width: 100px; height: 100px;">
+          <img src="${url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #134d37;">
+          <button type="button" onclick="removeImage('${url}', this.parentElement)" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      `).join('');
+      
       toggleSoldFields();
       document.getElementById('inventoryModal').classList.add('active');
       
@@ -235,7 +296,6 @@
     }
   };
 
-  // Delete item
   window.deleteItem = async function(id) {
     if (!confirm('Are you sure you want to delete this inventory item?')) return;
     
@@ -246,7 +306,6 @@
         .eq('id', id);
       
       if (error) throw error;
-      
       await loadInventory();
       
     } catch (error) {
@@ -255,12 +314,11 @@
     }
   };
 
-  // Close modal
   window.closeModal = function() {
     document.getElementById('inventoryModal').classList.remove('active');
+    uploadedImages = [];
   };
 
-  // Form submit
   document.getElementById('inventoryForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -286,19 +344,18 @@
         sold_contact: document.getElementById('soldContact').value || null,
         profit_loss: document.getElementById('profitLoss').value || null,
         notes: document.getElementById('notes').value || null,
-        documents: document.getElementById('documents').value || null
+        documents: document.getElementById('documents').value || null,
+        image_urls: uploadedImages.length > 0 ? JSON.stringify(uploadedImages) : null
       };
       
       let error;
       
       if (editingId) {
-        // Update existing
         ({ error } = await supabaseClient
           .from('office_inventory')
           .update(itemData)
           .eq('id', editingId));
       } else {
-        // Insert new
         ({ error } = await supabaseClient
           .from('office_inventory')
           .insert([itemData]));
@@ -318,17 +375,14 @@
     }
   });
 
-  // Search and filter
   document.getElementById('searchInput')?.addEventListener('input', loadInventory);
   document.getElementById('typeFilter')?.addEventListener('change', loadInventory);
   document.getElementById('statusFilter')?.addEventListener('change', loadInventory);
 
-  // Close modal on outside click
   document.getElementById('inventoryModal')?.addEventListener('click', function(e) {
     if (e.target === this) window.closeModal();
   });
 
-  // Initialize
   if (typeof window.getSupabaseClient !== 'undefined') {
     initInventory();
   }

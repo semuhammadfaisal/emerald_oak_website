@@ -2,14 +2,89 @@
 (function() {
   let supabaseClient;
   let editingId = null;
+  let uploadedImages = [];
 
-  // Initialize
   async function initProjects() {
     supabaseClient = window.getSupabaseClient();
+    setupImageUpload();
     await loadProjects();
   }
 
-  // Load projects
+  function setupImageUpload() {
+    const imageUpload = document.getElementById('imageUpload');
+    if (!imageUpload) return;
+
+    imageUpload.addEventListener('change', async function(e) {
+      const files = Array.from(e.target.files);
+      const preview = document.getElementById('imagePreview');
+      
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name} is too large. Max size is 5MB.`);
+          continue;
+        }
+
+        if (!file.type.startsWith('image/')) {
+          alert(`${file.name} is not an image file.`);
+          continue;
+        }
+
+        const loadingDiv = document.createElement('div');
+        loadingDiv.style.cssText = 'width: 100px; height: 100px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; border-radius: 8px;';
+        loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        preview.appendChild(loadingDiv);
+
+        try {
+          const fileName = `project_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+          const { data, error } = await supabaseClient.storage
+            .from('property-images')
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (error) throw error;
+
+          const { data: { publicUrl } } = supabaseClient.storage
+            .from('property-images')
+            .getPublicUrl(fileName);
+
+          uploadedImages.push(publicUrl);
+          document.getElementById('image').value = publicUrl;
+
+          preview.removeChild(loadingDiv);
+          
+          const imgContainer = document.createElement('div');
+          imgContainer.style.cssText = 'position: relative; width: 100px; height: 100px;';
+          imgContainer.innerHTML = `
+            <img src="${publicUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #134d37;">
+            <button type="button" onclick="removeProjectImage('${publicUrl}', this.parentElement)" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-times"></i>
+            </button>
+          `;
+          preview.appendChild(imgContainer);
+
+        } catch (error) {
+          console.error('Upload error:', error);
+          preview.removeChild(loadingDiv);
+          alert(`Failed to upload ${file.name}: ${error.message}`);
+        }
+      }
+
+      e.target.value = '';
+    });
+  }
+
+  window.removeProjectImage = function(url, element) {
+    uploadedImages = uploadedImages.filter(img => img !== url);
+    element.remove();
+    if (uploadedImages.length > 0) {
+      document.getElementById('image').value = uploadedImages[0];
+    } else {
+      document.getElementById('image').value = '';
+    }
+  };
+
   async function loadProjects() {
     try {
       const { data: projects, error } = await supabaseClient
@@ -46,16 +121,16 @@
     }
   }
 
-  // Open add modal
   window.openAddModal = function() {
     editingId = null;
+    uploadedImages = [];
     document.getElementById('modalTitle').textContent = 'Add Project';
     document.getElementById('projectForm').reset();
     document.getElementById('projectId').value = '';
+    document.getElementById('imagePreview').innerHTML = '';
     document.getElementById('projectModal').classList.add('active');
   };
 
-  // Edit project
   window.editProject = async function(id) {
     try {
       const { data: project, error } = await supabaseClient
@@ -68,6 +143,8 @@
       if (!project) return;
       
       editingId = id;
+      uploadedImages = project.image_url ? [project.image_url] : [];
+      
       document.getElementById('modalTitle').textContent = 'Edit Project';
       document.getElementById('projectId').value = project.id;
       document.getElementById('title').value = project.title;
@@ -77,6 +154,18 @@
       document.getElementById('description').value = project.description || '';
       document.getElementById('image').value = project.image_url || '';
       
+      const preview = document.getElementById('imagePreview');
+      if (project.image_url) {
+        preview.innerHTML = `
+          <div style="position: relative; width: 100px; height: 100px;">
+            <img src="${project.image_url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #134d37;">
+            <button type="button" onclick="removeProjectImage('${project.image_url}', this.parentElement)" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        `;
+      }
+      
       document.getElementById('projectModal').classList.add('active');
       
     } catch (error) {
@@ -85,7 +174,6 @@
     }
   };
 
-  // Delete project
   window.deleteProject = async function(id) {
     if (!confirm('Are you sure you want to delete this project?')) return;
     
@@ -105,12 +193,11 @@
     }
   };
 
-  // Close modal
   window.closeModal = function() {
     document.getElementById('projectModal').classList.remove('active');
+    uploadedImages = [];
   };
 
-  // Form submit
   document.getElementById('projectForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -119,25 +206,25 @@
     submitBtn.textContent = 'Saving...';
     
     try {
+      const imageUrl = document.getElementById('image').value;
+      
       const projectData = {
         title: document.getElementById('title').value,
         location: document.getElementById('location').value,
         status: document.getElementById('status').value,
         completion: parseInt(document.getElementById('completion').value),
         description: document.getElementById('description').value,
-        image_url: document.getElementById('image').value
+        image_url: imageUrl
       };
       
       let error;
       
       if (editingId) {
-        // Update existing
         ({ error } = await supabaseClient
           .from('projects')
           .update(projectData)
           .eq('id', editingId));
       } else {
-        // Insert new
         ({ error } = await supabaseClient
           .from('projects')
           .insert([projectData]));
@@ -157,12 +244,10 @@
     }
   });
 
-  // Close modal on outside click
   document.getElementById('projectModal')?.addEventListener('click', function(e) {
     if (e.target === this) window.closeModal();
   });
 
-  // Initialize
   if (typeof window.getSupabaseClient !== 'undefined') {
     initProjects();
   }
