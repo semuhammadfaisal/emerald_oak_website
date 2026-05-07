@@ -127,6 +127,21 @@ if (contactForm) {
     
     // Simple validation
     if (name && email && phone && message) {
+      // Save to localStorage for admin panel
+      const inquiry = {
+        id: Date.now().toString(),
+        name: name,
+        email: email,
+        phone: phone,
+        message: message,
+        date: new Date().toISOString(),
+        status: 'new'
+      };
+      
+      const inquiries = JSON.parse(localStorage.getItem('emeraldOakInquiries')) || [];
+      inquiries.push(inquiry);
+      localStorage.setItem('emeraldOakInquiries', JSON.stringify(inquiries));
+      
       alert('Thank you for contacting us! We will get back to you soon.');
       contactForm.reset();
     } else {

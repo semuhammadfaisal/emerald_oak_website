@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Emerald OAK</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="admin-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <i class="fas fa-leaf"></i>
+        <h2>Emerald OAK</h2>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item active">
+          <i class="fas fa-chart-line"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="properties.html" class="nav-item">
+          <i class="fas fa-building"></i>
+          <span>Properties</span>
+        </a>
+        <a href="projects.html" class="nav-item">
+          <i class="fas fa-hammer"></i>
+          <span>Projects</span>
+        </a>
+        <a href="inquiries.html" class="nav-item">
+          <i class="fas fa-envelope"></i>
+          <span>Inquiries</span>
+        </a>
+        <a href="settings.html" class="nav-item">
+          <i class="fas fa-cog"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button onclick="logout()" class="logout-btn">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="top-bar">
+        <h1>Dashboard</h1>
+        <div class="user-info">
+          <span id="adminName">Admin User</span>
+          <i class="fas fa-user-circle"></i>
+        </div>
+      </header>
+
+      <div class="content-area">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #134d37;">
+              <i class="fas fa-building"></i>
+            </div>
+            <div class="stat-info">
+              <h3 id="totalProperties">0</h3>
+              <p>Total Properties</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #e4b04a;">
+              <i class="fas fa-hammer"></i>
+            </div>
+            <div class="stat-info">
+              <h3 id="totalProjects">0</h3>
+              <p>Active Projects</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #2563eb;">
+              <i class="fas fa-envelope"></i>
+            </div>
+            <div class="stat-info">
+              <h3 id="totalInquiries">0</h3>
+              <p>New Inquiries</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #16a34a;">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+              <h3 id="soldProperties">0</h3>
+              <p>Sold Properties</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="dashboard-section">
+          <h2>Recent Properties</h2>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Location</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="recentProperties">
+                <tr>
+                  <td colspan="5" class="no-data">No properties yet</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../config/supabase.js"></script>
+  <script src="js/auth-supabase.js"></script>
+  <script src="js/dashboard-supabase.js"></script>
+</body>
+</html>
