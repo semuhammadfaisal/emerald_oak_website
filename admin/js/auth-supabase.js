@@ -35,23 +35,43 @@
       const errorMsg = document.getElementById('errorMsg');
       const submitBtn = e.target.querySelector('button[type="submit"]');
       
+      // Clear previous errors
+      errorMsg.textContent = '';
+      
       // Disable button during login
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
       
       try {
+        console.log('Attempting login with email:', email);
+        
         const { data, error } = await supabaseClient.auth.signInWithPassword({
           email: email,
           password: password
         });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Login error:', error);
+          throw error;
+        }
+        
+        console.log('Login successful:', data);
         
         // Success - redirect to dashboard
         window.location.href = 'dashboard.html';
         
       } catch (error) {
-        errorMsg.textContent = error.message || 'Invalid email or password';
+        console.error('Login failed:', error);
+        
+        // Show user-friendly error messages
+        if (error.message.includes('Invalid login credentials')) {
+          errorMsg.textContent = 'Invalid email or password. Please check your credentials.';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMsg.textContent = 'Please confirm your email address first.';
+        } else {
+          errorMsg.textContent = error.message || 'Login failed. Please try again.';
+        }
+        
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<span>Login</span><i class="fas fa-arrow-right"></i>';
       }
