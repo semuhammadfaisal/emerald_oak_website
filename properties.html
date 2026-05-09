@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Browse properties for sale - Emerald OAK Real Estate & Builders">
+  <title>Properties for Sale | Emerald OAK Real Estate & Builders</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- NAVBAR (Dynamic Component) -->
+  <div id="navbar"></div>
+
+  <!-- PAGE HERO -->
+  <section class="page-hero" style="background: linear-gradient(135deg, #134d37 0%, #1a6b4a 100%); padding: 80px 0; text-align: center; color: white;">
+    <div class="container">
+      <h1 style="font-size: 48px; margin-bottom: 15px;">Properties for Sale</h1>
+      <p style="font-size: 18px; opacity: 0.9;">Find your dream property with Emerald OAK</p>
+    </div>
+  </section>
+
+  <!-- FILTERS -->
+  <section style="background: #f8f9fa; padding: 30px 0;">
+    <div class="container">
+      <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+        <select id="typeFilter" style="padding: 12px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; min-width: 150px;">
+          <option value="">All Types</option>
+          <option value="house">House</option>
+          <option value="plot">Plot</option>
+          <option value="apartment">Apartment</option>
+          <option value="commercial">Commercial</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Search by location..." style="padding: 12px 20px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; min-width: 250px;">
+        <button onclick="loadProperties()" style="padding: 12px 30px; background: #134d37; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600;">
+          <i class="fas fa-search"></i> Search
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROPERTIES GRID -->
+  <section style="padding: 60px 0;">
+    <div class="container">
+      <div id="propertiesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px;">
+        <!-- Properties will be loaded here -->
+      </div>
+      <div id="noProperties" style="display: none; text-align: center; padding: 60px 20px; color: #999;">
+        <i class="fas fa-home" style="font-size: 64px; margin-bottom: 20px; opacity: 0.3;"></i>
+        <h3 style="font-size: 24px; margin-bottom: 10px;">No Properties Found</h3>
+        <p>Check back later for new listings</p>
+      </div>
+      <div id="loadingProperties" style="text-align: center; padding: 60px 20px;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #134d37;"></i>
+        <p style="margin-top: 20px; color: #666;">Loading properties...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER (Dynamic Component) -->
+  <div id="footer"></div>
+
+  <!-- JavaScript -->
+  <script src="config/supabase.js"></script>
+  <script src="js/properties-listing.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>

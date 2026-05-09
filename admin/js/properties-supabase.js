@@ -114,7 +114,7 @@
       const tbody = document.getElementById('propertiesTable');
       
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="no-data">No properties found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No properties found</td></tr>';
         return;
       }
       
@@ -127,6 +127,13 @@
           <td>${property.size}</td>
           <td>${property.price}</td>
           <td><span class="status-badge status-${property.status}">${property.status}</span></td>
+          <td>
+            <label style="display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <input type="checkbox" ${property.show_on_website ? 'checked' : ''} 
+                     onchange="toggleWebsiteVisibility('${property.id}', this.checked)"
+                     style="width: 20px; height: 20px; cursor: pointer;">
+            </label>
+          </td>
           <td>
             <button onclick="editProperty('${property.id}')" class="action-btn edit-btn">Edit</button>
             <button onclick="deleteProperty('${property.id}')" class="action-btn delete-btn">Delete</button>
@@ -175,6 +182,7 @@
       document.getElementById('description').value = property.description || '';
       document.getElementById('features').value = property.features || '';
       document.getElementById('image').value = property.image_url || '';
+      document.getElementById('showOnWebsite').checked = property.show_on_website || false;
       
       const preview = document.getElementById('imagePreview');
       if (property.image_url) {
@@ -220,6 +228,22 @@
     uploadedImages = [];
   };
 
+  window.toggleWebsiteVisibility = async function(id, show) {
+    try {
+      const { error } = await supabaseClient
+        .from('properties')
+        .update({ show_on_website: show })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+    } catch (error) {
+      console.error('Error updating visibility:', error);
+      alert('Error updating website visibility');
+      await loadProperties();
+    }
+  };
+
   document.getElementById('propertyForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -239,7 +263,8 @@
         status: document.getElementById('status').value,
         description: document.getElementById('description').value,
         features: document.getElementById('features').value,
-        image_url: imageUrl
+        image_url: imageUrl,
+        show_on_website: document.getElementById('showOnWebsite').checked
       };
       
       let error;
